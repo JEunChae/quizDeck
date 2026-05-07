@@ -3,10 +3,7 @@ import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toKoreanError } from '@/lib/utils/error-message'
-import { useRouter } from 'next/navigation'
-
 export function SignupForm() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -33,8 +30,7 @@ export function SignupForm() {
     const { data, error } = await supabase.auth.signUp({ email: savedEmail, password: savedPassword })
     if (error) { setError(toKoreanError(error.message)); setIsLoading(false); return }
     if (!data.session) { setEmailSent(true); setIsLoading(false); return }
-    router.refresh()
-    router.push('/dashboard')
+    window.location.href = '/dashboard'
   }
 
   if (emailSent) {

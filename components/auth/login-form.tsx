@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toKoreanError } from '@/lib/utils/error-message'
-import { useRouter } from 'next/navigation'
 
 function detectEnv(): 'inapp-ios' | 'inapp-android' | 'ios' | 'android' | 'other' {
   if (typeof navigator === 'undefined') return 'other'
@@ -136,7 +135,6 @@ function InstallGuide() {
 }
 
 export function LoginForm() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -149,8 +147,7 @@ export function LoginForm() {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(toKoreanError(error.message)); setIsLoading(false); return }
-    router.refresh()
-    router.push('/dashboard')
+    window.location.href = '/dashboard'
   }
 
   return (

@@ -83,7 +83,8 @@ export async function copySetToUser(sourceSetId: string): Promise<FlashSet> {
     const cards = sourceCards.map((c: import('@/types/database').Card) => ({
       set_id: newSet.id, front: c.front, back: c.back, difficulty: c.difficulty,
     }))
-    await supabase.from('cards').insert(cards)
+    const { error: cardsError } = await supabase.from('cards').insert(cards)
+    if (cardsError) throw cardsError
   }
 
   return newSet

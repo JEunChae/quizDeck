@@ -11,6 +11,10 @@ export async function getCardsBySetId(setId: string): Promise<Card[]> {
 
 export async function createCard(values: Pick<Card, 'set_id' | 'front' | 'back' | 'difficulty'>): Promise<Card> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { data: set } = await supabase.from('sets').select('id').eq('id', values.set_id).eq('user_id', user.id).single()
+  if (!set) throw new Error('Not authorized')
   const { data, error } = await supabase.from('cards').insert(values).select().single()
   if (error) throw error
   return data

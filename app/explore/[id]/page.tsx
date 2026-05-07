@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache'
 import Link from 'next/link'
 import { PublicCardList } from '@/components/cards/public-card-item'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ExploreSetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
