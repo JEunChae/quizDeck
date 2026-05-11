@@ -57,6 +57,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <path d="m21 21-4.35-4.35" />
               </svg>
             </Link>
+            <Link href="/translate" className="hover:text-stone-900 transition-colors whitespace-nowrap">
+              번역기
+            </Link>
             {user && (
               <>
                 <Link href="/dashboard" className="hover:text-stone-900 transition-colors whitespace-nowrap">내 단어장</Link>
