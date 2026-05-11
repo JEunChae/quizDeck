@@ -54,17 +54,50 @@ export function Translator() {
     }
   }
 
+  // 비한국어 텍스트와 한국어 텍스트를 구분
+  const isFromKorean = from === 'ko'
+  const nonKoreanText = result ? (isFromKorean ? result.translation : text) : ''
+  const koreanText = result ? (isFromKorean ? text : result.translation) : ''
+  const speakLang = isFromKorean ? TTS_LOCALE[to] : TTS_LOCALE[from]
+
   const speak = useCallback(() => {
-    if (!result || speaking) return
-    const utterance = new SpeechSynthesisUtterance(result.translation)
-    utterance.lang = TTS_LOCALE[to]
+    if (!nonKoreanText || speaking) return
+    const utterance = new SpeechSynthesisUtterance(nonKoreanText)
+    utterance.lang = speakLang
     utterance.onstart = () => setSpeaking(true)
     utterance.onend = () => setSpeaking(false)
     utterance.onerror = () => setSpeaking(false)
     window.speechSynthesis.speak(utterance)
-  }, [result, to, speaking])
+  }, [nonKoreanText, speakLang, speaking])
 
   const hasTts = typeof window !== 'undefined' && 'speechSynthesis' in window
+  const hasPronunciation = !!(result?.romanization && result?.koreanPhonetic)
+
+  const nonKoreanBlock = result && (
+    <div className="space-y-0.5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-lg font-medium text-stone-800">{nonKoreanText}</p>
+        {hasTts && (
+          <button
+            type="button"
+            onClick={speak}
+            disabled={speaking}
+            aria-label="발음 듣기"
+            className="btn-note btn-ghost text-stone-400 hover:text-stone-700 disabled:opacity-40 text-xl px-1"
+          >
+            🔊
+          </button>
+        )}
+      </div>
+      {hasPronunciation && (
+        <p className="text-sm text-stone-400">{result.romanization} / {result.koreanPhonetic}</p>
+      )}
+    </div>
+  )
+
+  const koreanBlock = result && (
+    <p className="text-lg font-medium text-stone-700">{koreanText}</p>
+  )
 
   return (
     <div className="max-w-xl mx-auto space-y-5">
@@ -101,28 +134,20 @@ export function Translator() {
       {/* 에러 */}
       {error && <p className="text-rose-500 text-sm">{error}</p>}
 
-      {/* 결과 */}
+      {/* 결과: 비한국어가 위, 한국어가 아래 (KO→XX면 반대) */}
       {result && (
-        <div className="notebook-paper rounded border border-stone-200 p-4 space-y-1">
-          {result.romanization && result.koreanPhonetic && (
-            <p className="text-sm text-stone-400">
-              {text} ({result.romanization} / {result.koreanPhonetic})
-            </p>
+        <div className="notebook-paper rounded border border-stone-200 p-4 space-y-3">
+          {isFromKorean ? (
+            <>
+              {koreanBlock}
+              <div className="border-t border-stone-200 pt-3">{nonKoreanBlock}</div>
+            </>
+          ) : (
+            <>
+              {nonKoreanBlock}
+              <div className="border-t border-stone-200 pt-3">{koreanBlock}</div>
+            </>
           )}
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-lg font-medium text-stone-800">{result.translation}</p>
-            {hasTts && (
-              <button
-                type="button"
-                onClick={speak}
-                disabled={speaking}
-                aria-label="발음 듣기"
-                className="btn-note btn-ghost text-stone-400 hover:text-stone-700 disabled:opacity-40 text-xl px-1"
-              >
-                🔊
-              </button>
-            )}
-          </div>
         </div>
       )}
     </div>
