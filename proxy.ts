@@ -28,7 +28,8 @@ export async function proxy(request: NextRequest) {
 
   const isPublicRoute = isAuthRoute ||
     request.nextUrl.pathname.startsWith('/explore') ||
-    request.nextUrl.pathname.startsWith('/translate')
+    request.nextUrl.pathname.startsWith('/translate') ||
+    request.nextUrl.pathname.startsWith('/api/translate')
 
   if (!user && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url))
