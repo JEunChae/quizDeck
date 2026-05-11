@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import localFont from 'next/font/local'
@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   other: {
     'mobile-web-app-capable': 'yes',
   },
+}
+
+export const viewport: Viewport = {
   themeColor: '#292524',
 }
 
