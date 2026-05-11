@@ -17,6 +17,16 @@ interface TranslateResult {
   koreanPhonetic: string | null
 }
 
+// route.ts의 getPronunciationTarget 로직과 동일:
+// 발음이 번역 결과(output)에 속하는지, 입력(input)에 속하는지 판별
+function getPronunciationSide(from: Lang, to: Lang): 'input' | 'output' | null {
+  if (to === 'ja' || to === 'zh') return 'output'
+  if (from === 'ja' || from === 'zh') return 'input'
+  if (to === 'en') return 'output'
+  if (from === 'en') return 'input'
+  return null
+}
+
 export function Translator() {
   const [from, setFrom] = useState<Lang>('en')
   const [to, setTo] = useState<Lang>('ko')
@@ -54,49 +64,67 @@ export function Translator() {
     }
   }
 
-  // 비한국어 텍스트와 한국어 텍스트를 구분
-  const isFromKorean = from === 'ko'
-  const nonKoreanText = result ? (isFromKorean ? result.translation : text) : ''
-  const koreanText = result ? (isFromKorean ? text : result.translation) : ''
-  const speakLang = isFromKorean ? TTS_LOCALE[to] : TTS_LOCALE[from]
+  const pronunciationSide = getPronunciationSide(from, to)
+  const speakText = result
+    ? pronunciationSide === 'output' ? result.translation : text
+    : ''
+  const speakLang = pronunciationSide === 'output' ? TTS_LOCALE[to] : TTS_LOCALE[from]
 
   const speak = useCallback(() => {
-    if (!nonKoreanText || speaking) return
-    const utterance = new SpeechSynthesisUtterance(nonKoreanText)
+    if (!speakText || speaking) return
+    const utterance = new SpeechSynthesisUtterance(speakText)
     utterance.lang = speakLang
     utterance.onstart = () => setSpeaking(true)
     utterance.onend = () => setSpeaking(false)
     utterance.onerror = () => setSpeaking(false)
     window.speechSynthesis.speak(utterance)
-  }, [nonKoreanText, speakLang, speaking])
+  }, [speakText, speakLang, speaking])
 
   const hasTts = typeof window !== 'undefined' && 'speechSynthesis' in window
   const hasPronunciation = !!(result?.romanization && result?.koreanPhonetic)
 
-  const nonKoreanBlock = result && (
+  function SpeakerButton() {
+    if (!hasTts || !result) return null
+    return (
+      <button
+        type="button"
+        onClick={speak}
+        disabled={speaking}
+        aria-label="발음 듣기"
+        className="btn-note btn-ghost text-stone-400 hover:text-stone-700 disabled:opacity-40 text-xl px-1 shrink-0"
+      >
+        🔊
+      </button>
+    )
+  }
+
+  function PronunciationLine() {
+    if (!hasPronunciation) return null
+    return (
+      <p className="text-sm text-stone-400">{result!.romanization} / {result!.koreanPhonetic}</p>
+    )
+  }
+
+  // 입력(input) 행
+  const inputBlock = (
     <div className="space-y-0.5">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-lg font-medium text-stone-800">{nonKoreanText}</p>
-        {hasTts && (
-          <button
-            type="button"
-            onClick={speak}
-            disabled={speaking}
-            aria-label="발음 듣기"
-            className="btn-note btn-ghost text-stone-400 hover:text-stone-700 disabled:opacity-40 text-xl px-1"
-          >
-            🔊
-          </button>
-        )}
+        <p className="text-lg font-medium text-stone-800">{text}</p>
+        {pronunciationSide === 'input' && <SpeakerButton />}
       </div>
-      {hasPronunciation && (
-        <p className="text-sm text-stone-400">{result.romanization} / {result.koreanPhonetic}</p>
-      )}
+      {pronunciationSide === 'input' && <PronunciationLine />}
     </div>
   )
 
-  const koreanBlock = result && (
-    <p className="text-lg font-medium text-stone-700">{koreanText}</p>
+  // 번역 결과(output) 행
+  const outputBlock = result && (
+    <div className="space-y-0.5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-lg font-medium text-stone-800">{result.translation}</p>
+        {pronunciationSide === 'output' && <SpeakerButton />}
+      </div>
+      {pronunciationSide === 'output' && <PronunciationLine />}
+    </div>
   )
 
   return (
@@ -134,20 +162,11 @@ export function Translator() {
       {/* 에러 */}
       {error && <p className="text-rose-500 text-sm">{error}</p>}
 
-      {/* 결과: 비한국어가 위, 한국어가 아래 (KO→XX면 반대) */}
+      {/* 결과: 입력 → 번역 순서로 표시, 발음/스피커는 해당 언어 행에 */}
       {result && (
         <div className="notebook-paper rounded border border-stone-200 p-4 space-y-3">
-          {isFromKorean ? (
-            <>
-              {koreanBlock}
-              <div className="border-t border-stone-200 pt-3">{nonKoreanBlock}</div>
-            </>
-          ) : (
-            <>
-              {nonKoreanBlock}
-              <div className="border-t border-stone-200 pt-3">{koreanBlock}</div>
-            </>
-          )}
+          {inputBlock}
+          <div className="border-t border-stone-200 pt-3">{outputBlock}</div>
         </div>
       )}
     </div>

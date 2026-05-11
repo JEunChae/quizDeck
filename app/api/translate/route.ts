@@ -5,14 +5,17 @@ import { ipaToKorean, hiraganaToKorean, pinyinToKorean } from '@/lib/translate/p
 type Lang = 'ko' | 'en' | 'ja' | 'zh'
 type Pronunciation = { romanization: string; koreanPhonetic: string }
 
-const MYMEMORY_EMAIL = 'dmsco3949@gmail.com'
+const GOOGLE_LANG: Record<Lang, string> = {
+  ko: 'ko', en: 'en', ja: 'ja', zh: 'zh-CN',
+}
 
 async function fetchTranslation(text: string, from: Lang, to: Lang): Promise<string> {
-  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}&de=${MYMEMORY_EMAIL}`
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${GOOGLE_LANG[from]}&tl=${GOOGLE_LANG[to]}&dt=t&q=${encodeURIComponent(text)}`
   const res = await fetch(url)
   const data = await res.json()
-  if (data.responseStatus !== 200) throw new Error(data.responseDetails ?? '번역 실패')
-  return data.responseData.translatedText as string
+  const result = data?.[0]?.[0]?.[0]
+  if (!result) throw new Error('번역 결과를 가져올 수 없습니다.')
+  return result as string
 }
 
 async function getPronunciation(lang: Lang, text: string): Promise<Pronunciation | null> {
@@ -21,7 +24,8 @@ async function getPronunciation(lang: Lang, text: string): Promise<Pronunciation
       const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(text)}`)
       if (!res.ok) return null
       const data = await res.json()
-      const phonetic: string = data[0]?.phonetic ?? data[0]?.phonetics?.[0]?.text ?? ''
+      const phonetic: string = data[0]?.phonetic ??
+        data[0]?.phonetics?.find((p: { text?: string }) => p.text)?.text ?? ''
       if (!phonetic) return null
       return { romanization: text.toLowerCase(), koreanPhonetic: ipaToKorean(phonetic) }
     }
@@ -45,6 +49,19 @@ async function getPronunciation(lang: Lang, text: string): Promise<Pronunciation
   }
 }
 
+// 발음이 필요한 언어와 텍스트 결정:
+// JA/ZH는 항상 읽기 표기 필요 → 우선순위 높음
+// EN은 한국 학습자를 위해 표시
+function getPronunciationTarget(
+  text: string, from: Lang, to: Lang, translation: string
+): { lang: Lang; pronounceText: string } | null {
+  if (to === 'ja' || to === 'zh') return { lang: to, pronounceText: translation }
+  if (from === 'ja' || from === 'zh') return { lang: from, pronounceText: text }
+  if (to === 'en') return { lang: 'en', pronounceText: translation }
+  if (from === 'en') return { lang: 'en', pronounceText: text }
+  return null
+}
+
 export async function POST(req: NextRequest) {
   const { text, from, to } = await req.json() as { text: string; from: Lang; to: Lang }
 
@@ -53,20 +70,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    let translation: string
-    let pronunciation: Pronunciation | null
-
-    if (from !== 'ko') {
-      // Input is non-Korean: translate and get pronunciation in parallel
-      ;[translation, pronunciation] = await Promise.all([
-        fetchTranslation(text, from, to),
-        getPronunciation(from, text),
-      ])
-    } else {
-      // Input is Korean: translate first, then optionally get pronunciation of result
-      translation = await fetchTranslation(text, from, to)
-      pronunciation = to !== 'ko' ? await getPronunciation(to, translation) : null
-    }
+    const translation = await fetchTranslation(text, from, to)
+    const target = getPronunciationTarget(text, from, to, translation)
+    const pronunciation = target ? await getPronunciation(target.lang, target.pronounceText) : null
 
     return NextResponse.json({
       translation,
@@ -75,7 +81,6 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : '번역 실패'
-    const status = message.includes('한도') ? 429 : 500
-    return NextResponse.json({ error: message }, { status })
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
