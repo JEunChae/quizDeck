@@ -1,5 +1,5 @@
 export type Difficulty = 'easy' | 'medium' | 'hard'
-export type StudyMode = 'flip' | 'mcq' | 'short_answer' | 'exam'
+export type StudyMode = 'flip' | 'mcq' | 'short_answer' | 'exam' | 'voice'
 export type ExamState = 'idle' | 'running' | 'completed'
 
 export interface FlashSet {
