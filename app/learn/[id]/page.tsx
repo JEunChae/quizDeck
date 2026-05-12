@@ -5,15 +5,17 @@ import { drawCards } from '@/lib/algorithms/card-draw'
 import { Flashcard } from '@/components/learn/flashcard'
 import { MCQCard } from '@/components/learn/mcq-card'
 import { ShortAnswerCard } from '@/components/learn/short-answer-card'
+import { VoiceCard } from '@/components/learn/voice-card'
 import { useSessionSize } from '@/hooks/use-session-size'
 import type { Card, CardResult, StudyMode } from '@/types/database'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 const MODES: { value: StudyMode; label: string; desc: string }[] = [
-  { value: 'flip', label: '카드 뒤집기', desc: '카드를 보고 뒤집어 정답 확인' },
-  { value: 'mcq', label: '객관식', desc: '4개 보기 중 정답 선택' },
-  { value: 'short_answer', label: '주관식', desc: '직접 입력으로 정답 확인' },
+  { value: 'flip',         label: '카드 뒤집기', desc: '카드를 보고 뒤집어 정답 확인' },
+  { value: 'mcq',          label: '객관식',      desc: '4개 보기 중 정답 선택' },
+  { value: 'short_answer', label: '주관식',      desc: '직접 입력으로 정답 확인' },
+  { value: 'voice',        label: '음성 학습',   desc: '질문을 듣고 음성으로 답하기' },
 ]
 
 export default function LearnPage() {
@@ -31,6 +33,7 @@ export default function LearnPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [mode, setMode] = useState<StudyMode | null>(null)
   const [done, setDone] = useState(false)
+  const [voiceDirection, setVoiceDirection] = useState<'front-to-back' | 'back-to-front' | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -134,6 +137,41 @@ export default function LearnPage() {
     </div>
   )
 
+  if (mode === 'voice' && voiceDirection === null) return (
+    <main className="max-w-lg mx-auto px-6 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <button
+          type="button"
+          onClick={() => setMode(null)}
+          className="text-sm text-stone-400 btn-ghost px-0"
+        >
+          ← 모드 선택
+        </button>
+      </div>
+      <h2 className="text-xl font-semibold text-stone-700 mb-5 text-center">방향 선택</h2>
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setVoiceDirection('front-to-back')}
+          className="w-full border border-stone-200 rounded p-4 text-left transition-all hover:border-stone-400"
+          style={{ backgroundColor: '#fafaf5' }}
+        >
+          <p className="font-semibold text-stone-700">앞 → 뒤</p>
+          <p className="text-sm text-stone-400 mt-1">앞면을 듣고 뒷면 말하기</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setVoiceDirection('back-to-front')}
+          className="w-full border border-stone-200 rounded p-4 text-left transition-all hover:border-stone-400"
+          style={{ backgroundColor: '#fafaf5' }}
+        >
+          <p className="font-semibold text-stone-700">뒤 → 앞</p>
+          <p className="text-sm text-stone-400 mt-1">뒷면을 듣고 앞면 말하기</p>
+        </button>
+      </div>
+    </main>
+  )
+
   if (!mode) return (
     <main className="max-w-lg mx-auto px-6 py-8">
       <div className="flex justify-between items-center mb-8">
@@ -165,7 +203,7 @@ export default function LearnPage() {
         <p className="text-stone-400 mt-2">총 {cards.length}개 카드를 학습했습니다.</p>
         <div className="flex gap-3 mt-6 justify-center">
           <button
-            onClick={() => { setMode(null); setSessionId(null); setCards([]) }}
+            onClick={() => { setMode(null); setSessionId(null); setCards([]); setVoiceDirection(null) }}
             className="btn-note btn-primary"
           >
             다시 학습
@@ -184,9 +222,12 @@ export default function LearnPage() {
         <Link href={`/sets/${setId}`} className="text-sm text-stone-400 btn-ghost px-0">← 세트로</Link>
         <p className="text-sm text-slate-500 font-medium">{index + 1} / {cards.length}</p>
       </div>
-      {mode === 'flip' && <Flashcard card={card} onResult={handleResult} />}
-      {mode === 'mcq' && <MCQCard key={card.id} card={card} allCards={allCards} onResult={handleResult} />}
+      {mode === 'flip'         && <Flashcard card={card} onResult={handleResult} />}
+      {mode === 'mcq'          && <MCQCard key={card.id} card={card} allCards={allCards} onResult={handleResult} />}
       {mode === 'short_answer' && <ShortAnswerCard card={card} onResult={handleResult} />}
+      {mode === 'voice' && voiceDirection && (
+        <VoiceCard key={card.id} card={card} direction={voiceDirection} onResult={handleResult} />
+      )}
     </main>
   )
 }
