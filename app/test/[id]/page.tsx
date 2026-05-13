@@ -6,6 +6,7 @@ import { createExamSession, startExam, answerCard, tickTimer } from '@/lib/algor
 import { generateMCQOptions } from '@/lib/algorithms/grading'
 import { ExamTimer } from '@/components/test/exam-timer'
 import { ResultReport } from '@/components/test/result-report'
+import { VoiceCard } from '@/components/learn/voice-card'
 import type { Card } from '@/types/database'
 import type { ExamSession } from '@/lib/algorithms/exam-state'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -26,6 +27,7 @@ export default function TestPage() {
   const [dbSessionId, setDbSessionId] = useState<string | null>(null)
   const [mcqOptions, setMcqOptions] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [testMode, setTestMode] = useState<'mcq' | 'voice' | null>(null)
   const endedRef = useRef(false)
   const submittingCardIdRef = useRef<string | null>(null)
 
@@ -120,6 +122,32 @@ export default function TestPage() {
     </div>
   )
 
+  if (testMode === null) return (
+    <main className="max-w-lg mx-auto px-6 py-8">
+      <h2 className="text-xl font-semibold text-stone-700 mb-5 text-center">테스트 방식 선택</h2>
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setTestMode('mcq')}
+          className="w-full border border-stone-200 rounded p-4 text-left transition-all hover:border-stone-400"
+          style={{ backgroundColor: '#fafaf5' }}
+        >
+          <p className="font-semibold text-stone-700">객관식</p>
+          <p className="text-sm text-stone-400 mt-1">4개 보기 중 정답 선택 · 제한 시간 {TIME_LIMIT / 60}분</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTestMode('voice')}
+          className="w-full border border-stone-200 rounded p-4 text-left transition-all hover:border-stone-400"
+          style={{ backgroundColor: '#fafaf5' }}
+        >
+          <p className="font-semibold text-stone-700">음성</p>
+          <p className="text-sm text-stone-400 mt-1">질문을 듣고 음성으로 답하기 · 제한 시간 {TIME_LIMIT / 60}분</p>
+        </button>
+      </div>
+    </main>
+  )
+
   if (session.state === 'completed') {
     return (
       <main className="max-w-2xl mx-auto px-6 py-8">
@@ -141,21 +169,27 @@ export default function TestPage() {
         <p className="text-sm text-stone-500 font-medium">{session.currentIndex + 1} / {session.cards.length}</p>
         <ExamTimer seconds={session.timeRemaining} onTick={handleTick} />
       </div>
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 text-xl font-medium text-center text-stone-700 mb-4 min-h-[100px] flex items-center justify-center">
-        {card.front}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {mcqOptions.map((opt, i) => (
-          <button
-            key={i}
-            onClick={() => handleAnswer(opt === card.back)}
-            disabled={submitting}
-            className="p-4 rounded-xl border border-stone-200 bg-white hover:border-stone-400 text-left text-stone-700 disabled:opacity-50 transition-all"
-          >
-            {opt}
-          </button>
-        ))}
-      </div>
+      {testMode === 'voice' ? (
+        <VoiceCard key={card.id} card={card} direction="front-to-back" onResult={handleAnswer} />
+      ) : (
+        <>
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 text-xl font-medium text-center text-stone-700 mb-4 min-h-[100px] flex items-center justify-center">
+            {card.front}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {mcqOptions.map((opt, i) => (
+              <button
+                key={i}
+                onClick={() => handleAnswer(opt === card.back)}
+                disabled={submitting}
+                className="p-4 rounded-xl border border-stone-200 bg-white hover:border-stone-400 text-left text-stone-700 disabled:opacity-50 transition-all"
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </main>
   )
 }
