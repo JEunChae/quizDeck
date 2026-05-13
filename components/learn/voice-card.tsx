@@ -40,7 +40,7 @@ export function VoiceCard({ card, direction, onResult }: {
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) {
-      setPhase('listening')
+      setTimeout(() => setPhase('listening'), 0)
       return
     }
     window.speechSynthesis.cancel()
@@ -127,14 +127,14 @@ export function VoiceCard({ card, direction, onResult }: {
       {phase === 'result-correct' && (
         <div className="text-center space-y-1">
           <p className="text-emerald-600 font-semibold text-lg">✅ 정답!</p>
-          <p className="text-stone-400 text-sm">"{transcript}"</p>
+          <p className="text-stone-400 text-sm">&quot;{transcript}&quot;</p>
         </div>
       )}
 
       {phase === 'result-wrong' && (
         <div className="space-y-3">
           <div className="text-center space-y-1">
-            <p className="text-rose-600 font-semibold">❌ 내가 말한 것: "{transcript || '(인식 없음)'}"</p>
+            <p className="text-rose-600 font-semibold">❌ 내가 말한 것: &quot;{transcript || '(인식 없음)'}&quot;</p>
             <p className="text-stone-600 text-sm">정답: <span className="font-medium">{answer}</span></p>
           </div>
           <div className="flex justify-center">

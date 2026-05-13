@@ -60,9 +60,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <path d="m21 21-4.35-4.35" />
               </svg>
             </Link>
-            <Link href="/translate" className="hover:text-stone-900 transition-colors whitespace-nowrap">
-              번역기
-            </Link>
+            {/* 번역기 링크 — 임시 숨김 */}
             {user && (
               <>
                 <Link href="/dashboard" className="hover:text-stone-900 transition-colors whitespace-nowrap">내 단어장</Link>
@@ -73,7 +71,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             )}
           </div>
         </nav>
-        <main>{children}</main>
+        <div>{children}</div>
         <PwaRegister />
       </body>
     </html>
