@@ -35,6 +35,7 @@ export function VoiceCard({ card, direction, onResult }: {
   const [phase, setPhase]           = useState<Phase>('reading')
   const [transcript, setTranscript] = useState('')
   const [error, setError]           = useState<string | null>(null)
+  const [canSkip, setCanSkip]       = useState(false)
   const recRef = useRef<SpeechRec | null>(null)
 
   useEffect(() => {
@@ -68,6 +69,7 @@ export function VoiceCard({ card, direction, onResult }: {
     const SR = win.SpeechRecognition ?? win.webkitSpeechRecognition
     if (!SR) {
       setError('이 브라우저는 음성 인식을 지원하지 않습니다.')
+      setCanSkip(true)
       return
     }
     const rec = new SR()
@@ -81,9 +83,10 @@ export function VoiceCard({ card, direction, onResult }: {
       setPhase(gradeVoiceAnswer(t, answer) ? 'result-correct' : 'result-wrong')
     }
     rec.onerror = (e) => {
+      recRef.current = null
       if (e.error === 'no-speech')        setError('말씀이 인식되지 않았습니다. 다시 시도해주세요.')
-      else if (e.error === 'not-allowed') setError('마이크 권한이 필요합니다.')
-      else                                setError('음성 인식 오류가 발생했습니다.')
+      else if (e.error === 'not-allowed') { setError('마이크 권한이 필요합니다.'); setCanSkip(true) }
+      else                                { setError('음성 인식 오류가 발생했습니다.'); setCanSkip(true) }
     }
     recRef.current = rec
     rec.start()
@@ -97,6 +100,17 @@ export function VoiceCard({ card, direction, onResult }: {
       </div>
 
       {error && <p className="text-rose-500 text-sm text-center">{error}</p>}
+      {canSkip && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => onResult(false)}
+            className="btn-note btn-secondary px-6"
+          >
+            건너뛰기 (오답 처리)
+          </button>
+        </div>
+      )}
 
       {phase === 'listening' && (
         <div className="flex justify-center">

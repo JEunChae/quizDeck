@@ -45,6 +45,9 @@ describe('gradeVoiceAnswer', () => {
   it('전혀 다른 단어면 false', () => expect(gradeVoiceAnswer('hello', 'world')).toBe(false))
   it('빈 문자열 vs 빈 문자열은 true', () => expect(gradeVoiceAnswer('', '')).toBe(true))
   it('한쪽만 빈 문자열이면 false', () => expect(gradeVoiceAnswer('', 'apple')).toBe(false))
+  it('3글자 이하 답변은 정확히 일치해야 true', () => expect(gradeVoiceAnswer('go', 'go')).toBe(true))
+  it('3글자 이하 답변 유사 오답은 false', () => expect(gradeVoiceAnswer('goo', 'go')).toBe(false))
+  it('3글자 이하 답변 다른 오답은 false', () => expect(gradeVoiceAnswer('bee', 'be')).toBe(false))
 })
 
 describe('calculateScore', () => {

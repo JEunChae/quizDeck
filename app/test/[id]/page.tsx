@@ -30,16 +30,17 @@ export default function TestPage() {
   const [testMode, setTestMode] = useState<'mcq' | 'voice' | null>(null)
   const endedRef = useRef(false)
   const submittingCardIdRef = useRef<string | null>(null)
+  const userRef = useRef<{ id: string } | null>(null)
 
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
+      userRef.current = user
       const { data: cardsData } = await supabase.from('cards').select('*').eq('set_id', setId)
       const all = cardsData ?? []
 
       let drawn: Card[]
-      let sessId: string | null
 
       if (resumeSessionId) {
         const { data: ownSession } = await supabase
@@ -49,15 +50,13 @@ export default function TestPage() {
           .from('card_results').select('card_id').eq('session_id', resumeSessionId)
         const answeredIds = new Set((sessionResults ?? []).map(r => r.card_id))
         drawn = all.filter(c => !answeredIds.has(c.id))
-        sessId = resumeSessionId
+        setDbSessionId(resumeSessionId)
       } else {
         drawn = drawCards(all, [], { shuffle: true, limit: sessionSize })
-        sessId = null
       }
 
       if (drawn.length < 2) { router.push(`/sets/${setId}`); return }
       setCards(drawn)
-      setDbSessionId(sessId)
       const examSess = startExam(createExamSession(drawn, TIME_LIMIT))
       setSession(examSess)
       if (drawn[0]) setMcqOptions(generateMCQOptions(drawn[0], drawn))
@@ -95,7 +94,7 @@ export default function TestPage() {
       setTestMode(selected)
       return
     }
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = userRef.current
     if (!user) return
     await supabase.from('study_sessions')
       .update({ ended_at: new Date().toISOString() })

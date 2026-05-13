@@ -80,5 +80,8 @@ function voiceSimilarity(a: string, b: string): number {
 }
 
 export function gradeVoiceAnswer(transcript: string, correct: string): boolean {
+  const s2 = correct.trim().toLowerCase()
+  if (transcript.trim().toLowerCase() === s2) return true
+  if (s2.length <= 3) return false
   return voiceSimilarity(transcript, correct) >= 0.8
 }
