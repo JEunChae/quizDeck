@@ -63,6 +63,7 @@ export function VoiceCard({ card, direction, onResult }: {
 
   function startListening() {
     setError(null)
+    recRef.current?.abort()
     const win = window as WinWithSpeech
     const SR = win.SpeechRecognition ?? win.webkitSpeechRecognition
     if (!SR) {

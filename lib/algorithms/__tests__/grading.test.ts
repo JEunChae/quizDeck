@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { gradeShortAnswer, generateMCQOptions, calculateScore } from '../grading'
+import { gradeShortAnswer, generateMCQOptions, calculateScore, gradeVoiceAnswer } from '../grading'
 import type { Card, CardResult } from '@/types/database'
 
 const makeCard = (id: string, back: string): Card => ({
@@ -34,6 +34,17 @@ describe('generateMCQOptions', () => {
     expect(opts).toContain('apple')
     expect(new Set(opts).size).toBe(opts.length)
   })
+})
+
+describe('gradeVoiceAnswer', () => {
+  it('정확히 일치하면 true', () => expect(gradeVoiceAnswer('apple', 'apple')).toBe(true))
+  it('대소문자 무시', () => expect(gradeVoiceAnswer('APPLE', 'apple')).toBe(true))
+  it('앞뒤 공백 무시', () => expect(gradeVoiceAnswer(' apple ', 'apple')).toBe(true))
+  it('80% 유사도(경계값)이면 true', () => expect(gradeVoiceAnswer('aple', 'apple')).toBe(true))
+  it('유사도 79% 이하면 false', () => expect(gradeVoiceAnswer('사과', '사관')).toBe(false))
+  it('전혀 다른 단어면 false', () => expect(gradeVoiceAnswer('hello', 'world')).toBe(false))
+  it('빈 문자열 vs 빈 문자열은 true', () => expect(gradeVoiceAnswer('', '')).toBe(true))
+  it('한쪽만 빈 문자열이면 false', () => expect(gradeVoiceAnswer('', 'apple')).toBe(false))
 })
 
 describe('calculateScore', () => {

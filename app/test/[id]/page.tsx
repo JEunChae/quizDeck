@@ -52,15 +52,7 @@ export default function TestPage() {
         sessId = resumeSessionId
       } else {
         drawn = drawCards(all, [], { shuffle: true, limit: sessionSize })
-        await supabase
-          .from('study_sessions')
-          .update({ ended_at: new Date().toISOString() })
-          .eq('user_id', user.id)
-          .eq('set_id', setId)
-          .is('ended_at', null)
-        const { data: sess } = await supabase.from('study_sessions')
-          .insert({ user_id: user.id, set_id: setId, mode: 'exam' }).select().single()
-        sessId = sess?.id ?? null
+        sessId = null
       }
 
       if (drawn.length < 2) { router.push(`/sets/${setId}`); return }
@@ -98,6 +90,23 @@ export default function TestPage() {
     finalize()
   }, [session, dbSessionId, supabase])
 
+  async function handleSelectMode(selected: 'mcq' | 'voice') {
+    if (dbSessionId !== null) {
+      setTestMode(selected)
+      return
+    }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('study_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('user_id', user.id).eq('set_id', setId).is('ended_at', null)
+    const { data: sess } = await supabase.from('study_sessions')
+      .insert({ user_id: user.id, set_id: setId, mode: selected === 'voice' ? 'voice' : 'exam' })
+      .select().single()
+    setDbSessionId(sess?.id ?? null)
+    setTestMode(selected)
+  }
+
   async function handleAnswer(isCorrect: boolean) {
     if (!session || !dbSessionId || submitting || session.state === 'completed') return
     setSubmitting(true)
@@ -128,7 +137,7 @@ export default function TestPage() {
       <div className="space-y-3">
         <button
           type="button"
-          onClick={() => setTestMode('mcq')}
+          onClick={() => handleSelectMode('mcq')}
           className="w-full border border-stone-200 rounded p-4 text-left transition-all hover:border-stone-400"
           style={{ backgroundColor: '#fafaf5' }}
         >
@@ -137,7 +146,7 @@ export default function TestPage() {
         </button>
         <button
           type="button"
-          onClick={() => setTestMode('voice')}
+          onClick={() => handleSelectMode('voice')}
           className="w-full border border-stone-200 rounded p-4 text-left transition-all hover:border-stone-400"
           style={{ backgroundColor: '#fafaf5' }}
         >
