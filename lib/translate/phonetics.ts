@@ -107,6 +107,20 @@ function ipaAssemble(tokens: IpaToken[]): string {
     }
   }
 
+  // Context-sensitive ə→ɛ: ə immediately before l (canDouble) + vowel → ɛ (Korean 외래어 표기법)
+  for (let k = 0; k < tokens.length - 2; k++) {
+    const tok = tokens[k]
+    const next = tokens[k + 1]
+    const afterNext = tokens[k + 2]
+    if (
+      tok.type === 'vowel' && tok.sym === 'ə' &&
+      next.type === 'consonant' && next.sym === 'l' && next.canDouble &&
+      afterNext.type === 'vowel'
+    ) {
+      tok.jamos = ['ㅔ']
+    }
+  }
+
   const syllables: string[] = []
   let i = 0
 

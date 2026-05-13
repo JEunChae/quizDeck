@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { Card, Difficulty } from '@/types/database'
 
 interface CardFormProps {
@@ -14,6 +14,8 @@ export function CardForm({ onSave, defaultValues, onCancel }: CardFormProps) {
   const [difficulty, setDifficulty] = useState<Difficulty>(defaultValues?.difficulty ?? 'medium')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const frontComposing = useRef(false)
+  const backComposing = useRef(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,13 +38,19 @@ export function CardForm({ onSave, defaultValues, onCancel }: CardFormProps) {
       )}
       <div className="flex flex-col gap-4">
         <input
-          value={front} onChange={e => setFront(e.target.value)}
-          placeholder="단어 (앞면)" required maxLength={200}
+          value={front}
+          onChange={e => { if (!frontComposing.current) setFront(e.target.value) }}
+          onCompositionStart={() => { frontComposing.current = true }}
+          onCompositionEnd={e => { frontComposing.current = false; setFront((e.target as HTMLInputElement).value) }}
+          placeholder="단어 (앞면)" required
           className="input-note"
         />
         <input
-          value={back} onChange={e => setBack(e.target.value)}
-          placeholder="뜻 (뒷면)" required maxLength={200}
+          value={back}
+          onChange={e => { if (!backComposing.current) setBack(e.target.value) }}
+          onCompositionStart={() => { backComposing.current = true }}
+          onCompositionEnd={e => { backComposing.current = false; setBack((e.target as HTMLInputElement).value) }}
+          placeholder="뜻 (뒷면)" required
           className="input-note"
         />
         <select

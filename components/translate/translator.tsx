@@ -13,18 +13,18 @@ const TTS_LOCALE: Record<Lang, string> = {
 
 interface TranslateResult {
   translation: string
-  romanization: string | null
-  koreanPhonetic: string | null
+  sourceText: string
 }
 
-// route.ts의 getPronunciationTarget 로직과 동일:
-// 발음이 번역 결과(output)에 속하는지, 입력(input)에 속하는지 판별
-function getPronunciationSide(from: Lang, to: Lang): 'input' | 'output' | null {
-  if (to === 'ja' || to === 'zh') return 'output'
-  if (from === 'ja' || from === 'zh') return 'input'
-  if (to === 'en') return 'output'
-  if (from === 'en') return 'input'
-  return null
+function speak(text: string, lang: string, onStart: () => void, onEnd: () => void) {
+  if (!text || !('speechSynthesis' in window)) return
+  window.speechSynthesis.cancel()
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.lang = lang
+  utterance.onstart = onStart
+  utterance.onend = onEnd
+  utterance.onerror = onEnd
+  window.speechSynthesis.speak(utterance)
 }
 
 export function Translator() {
@@ -34,17 +34,11 @@ export function Translator() {
   const [result, setResult] = useState<TranslateResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [speaking, setSpeaking] = useState(false)
+  const [speakingSource, setSpeakingSource] = useState(false)
+  const [speakingTarget, setSpeakingTarget] = useState(false)
 
-  function swap() {
-    setFrom(to)
-    setTo(from)
-    setResult(null)
-  }
-
-  async function handleTranslate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!text.trim()) return
+  async function translate(inputText: string, fromLang: Lang, toLang: Lang) {
+    if (!inputText.trim()) { setResult(null); return }
     setLoading(true)
     setError(null)
     setResult(null)
@@ -52,11 +46,11 @@ export function Translator() {
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, from, to }),
+        body: JSON.stringify({ text: inputText, from: fromLang, to: toLang }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? '번역 실패')
-      setResult(data)
+      setResult({ translation: data.translation, sourceText: inputText })
     } catch (err) {
       setError(err instanceof Error ? err.message : '번역에 실패했습니다.')
     } finally {
@@ -64,68 +58,29 @@ export function Translator() {
     }
   }
 
-  const pronunciationSide = getPronunciationSide(from, to)
-  const speakText = result
-    ? pronunciationSide === 'output' ? result.translation : text
-    : ''
-  const speakLang = pronunciationSide === 'output' ? TTS_LOCALE[to] : TTS_LOCALE[from]
-
-  const speak = useCallback(() => {
-    if (!speakText || speaking) return
-    const utterance = new SpeechSynthesisUtterance(speakText)
-    utterance.lang = speakLang
-    utterance.onstart = () => setSpeaking(true)
-    utterance.onend = () => setSpeaking(false)
-    utterance.onerror = () => setSpeaking(false)
-    window.speechSynthesis.speak(utterance)
-  }, [speakText, speakLang, speaking])
-
-  const hasTts = typeof window !== 'undefined' && 'speechSynthesis' in window
-  const hasPronunciation = !!(result?.romanization && result?.koreanPhonetic)
-
-  function SpeakerButton() {
-    if (!hasTts || !result) return null
-    return (
-      <button
-        type="button"
-        onClick={speak}
-        disabled={speaking}
-        aria-label="발음 듣기"
-        className="btn-note btn-ghost text-stone-400 hover:text-stone-700 disabled:opacity-40 text-xl px-1 shrink-0"
-      >
-        🔊
-      </button>
-    )
+  function handleTranslate(e: React.FormEvent) {
+    e.preventDefault()
+    void translate(text, from, to)
   }
 
-  function PronunciationLine() {
-    if (!hasPronunciation) return null
-    return (
-      <p className="text-sm text-stone-400">{result!.romanization} / {result!.koreanPhonetic}</p>
-    )
+  function swap() {
+    const newFrom = to
+    const newTo = from
+    setFrom(newFrom)
+    setTo(newTo)
+    void translate(text, newFrom, newTo)
   }
 
-  // 입력(input) 행
-  const inputBlock = (
-    <div className="space-y-0.5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-lg font-medium text-stone-800">{text}</p>
-        {pronunciationSide === 'input' && <SpeakerButton />}
-      </div>
-      {pronunciationSide === 'input' && <PronunciationLine />}
-    </div>
-  )
+  const speakSource = useCallback(() => {
+    speak(text, TTS_LOCALE[from], () => setSpeakingSource(true), () => setSpeakingSource(false))
+  }, [text, from])
 
-  // 번역 결과(output) 행
-  const outputBlock = result && (
-    <div className="space-y-0.5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-lg font-medium text-stone-800">{result.translation}</p>
-        {pronunciationSide === 'output' && <SpeakerButton />}
-      </div>
-      {pronunciationSide === 'output' && <PronunciationLine />}
-    </div>
-  )
+  const speakTarget = useCallback(() => {
+    if (!result) return
+    speak(result.translation, TTS_LOCALE[to], () => setSpeakingTarget(true), () => setSpeakingTarget(false))
+  }, [result, to])
+
+  const trimmed = text.trim()
 
   return (
     <div className="max-w-xl mx-auto space-y-5">
@@ -146,15 +101,26 @@ export function Translator() {
 
       {/* 입력 */}
       <form onSubmit={handleTranslate} className="space-y-3">
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="번역할 텍스트 입력..."
-          rows={4}
-          maxLength={500}
-          className="input-note resize-none"
-        />
-        <button type="submit" disabled={loading || !text.trim()} className="btn-note btn-primary w-full disabled:opacity-50">
+        <div className="relative">
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="번역할 텍스트 입력..."
+            rows={4}
+            maxLength={500}
+            className="input-note resize-none pr-10"
+          />
+          <button
+            type="button"
+            onClick={speakSource}
+            disabled={speakingSource || !trimmed}
+            aria-label="원문 발음 듣기"
+            className={`absolute bottom-2 right-2 text-stone-400 hover:text-stone-700 disabled:opacity-40 text-xl transition-opacity ${trimmed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          >
+            🔊
+          </button>
+        </div>
+        <button type="submit" disabled={loading || !trimmed} className="btn-note btn-primary w-full disabled:opacity-50">
           {loading ? '번역 중...' : '번역하기'}
         </button>
       </form>
@@ -162,11 +128,22 @@ export function Translator() {
       {/* 에러 */}
       {error && <p className="text-rose-500 text-sm">{error}</p>}
 
-      {/* 결과: 입력 → 번역 순서로 표시, 발음/스피커는 해당 언어 행에 */}
+      {/* 결과 */}
       {result && (
         <div className="notebook-paper rounded border border-stone-200 p-4 space-y-3">
-          {inputBlock}
-          <div className="border-t border-stone-200 pt-3">{outputBlock}</div>
+          <p className="text-lg font-medium text-stone-800">{result.sourceText}</p>
+          <div className="border-t border-stone-200 pt-3 flex items-center justify-between gap-3">
+            <p className="text-lg font-medium text-stone-800">{result.translation}</p>
+            <button
+              type="button"
+              onClick={speakTarget}
+              disabled={speakingTarget}
+              aria-label="번역 발음 듣기"
+              className="btn-note btn-ghost text-stone-400 hover:text-stone-700 disabled:opacity-40 text-xl px-1 shrink-0"
+            >
+              🔊
+            </button>
+          </div>
         </div>
       )}
     </div>
